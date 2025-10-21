@@ -44,4 +44,3 @@ pip install icalevents
 # e rodar "streamlit run 1ajustes.py" pro código funcionar, e abrir a interface gráfica
 
 # Sobre o pop-up do Pylance Pode clicar No agora; é só sugestão de type checking. Não afeta a execução.
-oi
