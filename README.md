@@ -1,7 +1,7 @@
 # sistema-organizacao-pet
 # sistema-organizacao-pet
-# para rodar o código, tem que ter dado "pip install streamlit" no terminal do vscode
-# para rodar o pacote, tem que rodar: streamlit run 1ajustes.py , sendo esse 1ajustes.py o meu arquivo em que estou escrevendo os primeiros ajustes ao código
+## para rodar o código, tem que ter dado "pip install streamlit" no terminal do vscode
+## para rodar o pacote, tem que rodar: streamlit run 1ajustes.py , sendo esse 1ajustes.py o meu arquivo em que estou escrevendo os primeiros ajustes ao código
 
 # Também temos que baixar: 1ajustes.py (escrever esse comando no terminal)
 # após isso, correr novamente: streamlit run 1ajustes.py
