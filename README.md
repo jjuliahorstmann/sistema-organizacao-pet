@@ -1,9 +1,15 @@
-# sistema-organizacao-pet
+# 📆📘 sistema-organizacao-pet
+Este projeto tem como objetivo desenvolver um sistema voltado à organização de horários e reuniões do PET Engenharia de Produção, capaz de ler as agendas dos integrantes, identificar horários disponíveis em comum e exibir os resultados de maneira visual e intuitiva.
+
+## 🚀 Começando
+Essas instruções permitirão que você obtenha uma cópia do projeto em operação na sua máquina local para fins de desenvolvimento e teste.
  ## Instalar Streamlit:
  para rodar o código, tem que ter dado "pip install streamlit" no terminal do vscode
  para rodar o pacote, tem que rodar: streamlit run 1ajustes.py , sendo esse 1ajustes.py o meu arquivo em que estou escrevendo os primeiros ajustes ao código
 ## Instalar o icalevents: 
+```bash
 pip install icalevents
+```
 
 ## Também temos que baixar: 1ajustes.py 
  (escrever esse comando no terminal)

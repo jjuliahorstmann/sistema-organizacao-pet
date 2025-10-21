@@ -86,3 +86,5 @@ def calcular_horarios_livres(eventos_todos: list, intervalo_min: int, dias: int)
                 horarios_livres.append(tempo_atual)
         tempo_atual += timedelta(minutes=intervalo_min)
     return horarios_livres
+
+def quebra_evento(evento, nome)
