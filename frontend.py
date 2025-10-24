@@ -1,5 +1,6 @@
 import streamlit as st
 import pandas as pd
+from datetime import time
 from collections import defaultdict
 from backend import AGENDAS, carregar_eventos, encontrar_horarios_pet_comuns, calcular_horarios_livres
 
@@ -7,55 +8,82 @@ from backend import AGENDAS, carregar_eventos, encontrar_horarios_pet_comuns, ca
 def render_frontend():
     st.set_page_config(layout="wide", page_title="Analisador de Agendas")
     st.title("📅 Analisador de Agendas em Comum")
-    st.info("Dica: Se os resultados parecerem desatualizados, limpe o cache no menu (☰) → 'Clear cache'.")
 
-    membros_selecionados = st.multiselect("Escolha as agendas para analisar:", options=list(AGENDAS.keys()))
-    col1, col2 = st.columns(2)
-    intervalo = col1.number_input("⏱️ Intervalo (minutos):", min_value=15, value=50, step=5)
-    dias_para_analisar = col2.number_input("📅 Dias a analisar:", min_value=1, max_value=30, value=7)
+    # Seleção de membros
+    membros = st.multiselect("Escolha as agendas para analisar:", list(AGENDAS.keys()))
+    if not membros:
+        st.info("Selecione pelo menos uma agenda para começar.")
+        return
 
-    if st.button("Analisar Agendas", type="primary"):
-        if not membros_selecionados:
-            st.warning("Por favor, selecione pelo menos uma agenda.")
+    # Configurações principais
+    dias = st.number_input("📅 Quantos dias analisar:", 1, 30, 7)
+    janela = st.number_input("⏳ Janela de análise (minutos):", 5, 240, 60, 5)
+
+    # Filtro de horários com slider
+    hora_inicio, hora_fim = st.slider(
+        "🕒 Intervalo de horários:",
+        min_value=time(7, 30),
+        max_value=time(22, 0),
+        value=(time(8, 0), time(22, 0)),
+        step=300  # 5 minutos
+    )
+
+    if st.button("🔍 Analisar"):
+        st.info("Carregando dados...")
+
+        # Carrega e junta eventos
+        eventos_por_membro = {
+            m: carregar_eventos(AGENDAS[m], dias) for m in membros
+        }
+        todos_eventos = [e for lista in eventos_por_membro.values() for e in lista]
+
+        if not todos_eventos:
+            st.error("Nenhum evento encontrado.")
+            return
+
+        df = pd.DataFrame(todos_eventos)
+        df["membro"] = [m for m, evts in eventos_por_membro.items() for _ in evts]
+        df = df.sort_values("inicio")
+
+        # Mostra eventos carregados
+        st.subheader("📋 Eventos carregados")
+        st.dataframe(df[["membro", "inicio", "fim", "nome"]])
+
+        # Filtra pelo intervalo de horário
+        df = df[(df["inicio"].dt.time >= hora_inicio) & (df["fim"].dt.time <= hora_fim)]
+        if df.empty:
+            st.warning("Nenhum evento dentro do intervalo selecionado.")
+            return
+
+        # Horários PET em comum
+        if len(membros) > 1:
+            st.subheader("🤝 Horários PET em comum")
+            comuns = encontrar_horarios_pet_comuns(eventos_por_membro, janela, dias)
+            if comuns:
+                por_dia = defaultdict(list)
+                for h in comuns:
+                    if hora_inicio <= h.time() <= hora_fim:
+                        por_dia[h.date()].append(h.strftime("%H:%M"))
+                if por_dia:
+                    for d, h in sorted(por_dia.items()):
+                        st.success(f"**{d.strftime('%d/%m/%Y')}**: {', '.join(h)}")
+                else:
+                    st.info("Nenhum horário em comum dentro do intervalo.")
+            else:
+                st.info("Nenhum horário em comum encontrado.")
         else:
-            with st.spinner("Carregando e cruzando os dados das agendas..."):
-                eventos_por_membro = {sigla: carregar_eventos(AGENDAS[sigla], dias_para_analisar)
-                                      for sigla in membros_selecionados}
-                eventos_todos = [evento for lista in eventos_por_membro.values() for evento in lista]
+            st.info("Selecione pelo menos duas pessoas para comparar.")
 
-                st.subheader("🕵️‍♀️ DADOS DE DEPURAÇÃO: Eventos Carregados")
-                if eventos_todos:
-                    df_debug = pd.DataFrame(eventos_todos)
-                    df_debug['membro'] = [m for m, eventos in eventos_por_membro.items() for _ in eventos]
-                    df_debug = df_debug.sort_values(by="inicio").reset_index(drop=True)
-                    st.dataframe(df_debug[['membro', 'inicio', 'fim', 'nome']])
-                else:
-                    st.error("Nenhum evento foi carregado para o período selecionado.")
-
-                if len(membros_selecionados) > 1:
-                    st.subheader("Horários 'PET' em Comum")
-                    horarios_pet_comuns = encontrar_horarios_pet_comuns(eventos_por_membro, intervalo, dias_para_analisar)
-                    if horarios_pet_comuns:
-                        pet_por_dia = defaultdict(list)
-                        for h in horarios_pet_comuns:
-                            pet_por_dia[h.date()].append(h.strftime("%H:%M"))
-                        for dia, horarios in sorted(pet_por_dia.items()):
-                            st.success(f"**{dia.strftime('%d/%m/%Y')}**: {', '.join(horarios)}")
-                    else:
-                        st.info("Não foram encontrados horários onde todos tivessem um evento 'PET' simultaneamente.")
-                else:
-                    st.info("Selecione pelo menos duas pessoas para comparar.")
-
-                st.subheader("Horários Livres para Todos")
-                horarios_livres = calcular_horarios_livres(eventos_todos, intervalo, dias_para_analisar)
-                if horarios_livres:
-                    livres_por_dia = defaultdict(list)
-                    for h in horarios_livres:
-                        livres_por_dia[h.date()].append(h.strftime("%H:%M"))
-                    dias_semana = ["Segunda", "Terça", "Quarta", "Quinta", "Sexta", "Sábado", "Domingo"]
-                    for dia, horarios in sorted(livres_por_dia.items()):
-                        nome_dia_semana = dias_semana[dia.weekday()]
-                        with st.expander(f"**{dia.strftime('%d/%m/%Y')} - {nome_dia_semana}**"):
-                            st.text(" | ".join(horarios))
-                else:
-                    st.warning("Nenhum horário livre em comum foi encontrado.")
+        # Horários livres
+        st.subheader("🕰️ Horários livres em comum")
+        livres = calcular_horarios_livres(todos_eventos, janela, dias)
+        if livres:
+            por_dia = defaultdict(list)
+            for h in livres:
+                if hora_inicio <= h.time() <= hora_fim:
+                    por_dia[h.date()].append(h.strftime("%H:%M"))
+            for d, h in sorted(por_dia.items()):
+                with st.expander(f"{d.strftime('%d/%m/%Y')}"):
+                    st.text(" | ".join(h))
+        else:
+            st.warning("Nenhum horário livre dentro do intervalo.")
