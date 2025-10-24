@@ -1,3 +1,4 @@
+import json
 import pytz
 from datetime import datetime, timedelta
 from icalevents.icalevents import events
@@ -6,22 +7,26 @@ import streamlit as st
 # Configurações globais
 FUSO_HORARIO_LOCAL = pytz.timezone('America/Sao_Paulo')
 
-AGENDAS = {
-    "Ac": "https://calendar.google.com/calendar/ical/e6d8f080887484fc3d682ef695210627df5d203bc0b78f605779df9ef9f5bb98%40group.calendar.google.com/private-deb95354e9a7a6b88ae40ce4451aa11a/basic.ics",
-    "Ag": "https://calendar.google.com/calendar/ical/arianegonzaga1%40gmail.com/private-8a03d7076d204f94466e21584afcc4dc/basic.ics",
-    "Em": "https://calendar.google.com/calendar/ical/eduardamanke%40gmail.com/private-22bc0ea8642f7ef3788530083924d45c/basic.ics",
-    "Hc": "https://calendar.google.com/calendar/ical/0500442c50cd217b6cc295c9ca032d4e9126d03f81996f38b7ff92b969f68111%40group.calendar.google.com/private-3dd7bd09f3491bf3d181ef9608f1289c/basic.ics",
-    "Hs": "https://calendar.google.com/calendar/ical/helena.sta.sch%40gmail.com/private-bdba0cc5df7a18ec5dfee505e05ac38c/basic.ics",
-    "Jh": "https://calendar.google.com/calendar/ical/4ac5787699da201ab1014427719ea0140ac174efc7b915c75a5ea1e00c6e9c78%40group.calendar.google.com/private-9aa3911adff242d6b4a164bbad4e7c19/basic.ics",
-    "Lc": "https://calendar.google.com/calendar/ical/lauracosta.pet%40gmail.com/private-0297a23e347137c4d1f4a600cbfddc3c/basic.ics",
-    "Ma": "https://calendar.google.com/calendar/ical/c096fc3ec6221a98105d88c53f53c4554b4cad8c663389758474d1f1835c8514%40group.calendar.google.com/private-888f3868a1035de3c010c943d1a67d02/basic.ics",
-    "Na": "https://calendar.google.com/calendar/ical/natalia.rubirapita%40gmail.com/private-d6e1ae0f68fa812f4162190421d6e021/basic.ics",
-    "Sn": "https://calendar.google.com/calendar/ical/arthur.sand.pet%40gmail.com/private-e27544fe0f57b0991e125ae3b7fa7d91/basic.ics",
-    "So": "https://calendar.google.com/calendar/ical/sofiaaaze%40gmail.com/private-8677517340f477993ca163207c7e0d5e/basic.ics",
-    "Vi": "https://calendar.google.com/calendar/ical/violetaglyra%40gmail.com/private-67ee80703c7c4dc3a95b5ca8a63f605a/basic.ics",
-    "Yr": "https://calendar.google.com/calendar/ical/yanraimundo1%40gmail.com/private-d5d28fb4da4fea715729b849a422fa66/basic.ics"
-}
+def carregar_agendas(arquivo_json: str = "agendas.json") -> dict:
+    
+   # Carrega o arquivo agendas.json do mesmo diretório do backend.py.
+   # Retorna um dicionário com as siglas e URLs das agendas.
+    
+    try:
+        caminho_absoluto = os.path.join(os.path.dirname(__file__), arquivo_json)
+        with open(caminho_absoluto, "r", encoding="utf-8") as f:
+            return json.load(f)
+    except FileNotFoundError:
+        st.error("❌ Arquivo 'agendas.json' não encontrado no repositório.")
+    except json.JSONDecodeError:
+        st.error("⚠️ Erro ao ler o arquivo 'agendas.json' — formato inválido.")
+    except Exception as e:
+        st.error(f"Erro inesperado ao carregar o arquivo de agendas: {e}")
+    return {}
 
+
+# === CARREGA AS AGENDAS ===
+AGENDAS = carregar_agendas()
 
 @st.cache_data(ttl=60)
 def carregar_eventos(url: str, dias_a_frente: int) -> list:
