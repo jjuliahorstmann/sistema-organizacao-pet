@@ -1,52 +1,60 @@
 # 📆📘 sistema-organizacao-pet
 Este projeto tem como objetivo desenvolver um sistema voltado à organização de horários e reuniões do PET Engenharia de Produção, capaz de ler as agendas dos integrantes, identificar horários disponíveis em comum e exibir os resultados de maneira visual e intuitiva.
+## 🧠 O que o sistema faz (resumo):
+
+- Baixa eventos das agendas (ICS) e considera o fuso America/Sao_Paulo.
+- Marca como ocupados eventos que batem com constantes.json.
+- Encontra:
+ Horários PET em comum (eventos que começam com “PET”) e Janelas livres dentro do horário comercial PET (08:00–22:00)
 
 ## 🚀 Começando
-Essas instruções permitirão que você obtenha uma cópia do projeto em operação na sua máquina local para fins de desenvolvimento e teste.
- ## Instalar Streamlit:
- para rodar o código, tem que ter dado "pip install streamlit" no terminal do vscode
- para rodar o pacote, tem que rodar: streamlit run 1ajustes.py , sendo esse 1ajustes.py o meu arquivo em que estou escrevendo os primeiros ajustes ao código
-## Instalar o icalevents: 
-```bash
-pip install icalevents
+Estas instruções permitem colocar o projeto para rodar na sua máquina para desenvolvimento e testes.
+
+✅ Pré-requisitos:
+- Python 3.10+
+- macOS / Windows / Linux
+- Acesso às URLs ICS das agendas
+
+## 📦 Instalar dependências:
+ ```bash
+pip install -r requirements.txt
 ```
+## 🗂️ Arquivos necessários:
+- agendas.json
+- constantes.json
 
-## Também temos que baixar: 1ajustes.py 
- (escrever esse comando no terminal)
- após isso, correr novamente: 
- Se aparecer para pedir email, apenas dar enter sem nada escrito
+## ▶️ Como rodar:
+No terminal, dentro da pasta do projeto rode:
+```bash
+streamlit run main.py
+```
+## 🧯 Problemas comuns
+- Erro de certificado ao baixar ICS:
 
-## Aqui começa os comentários de quando rodamos a parte do código que contém a lógica
- mudei o cache para a cada 1 minuto recarregar, e não a cada 5
- aqui é o "coração do código", a partir da linha 26
- essa função chamada carregar_eventos() é quem: baixa o arquivo de agenda (.ics) de cada pessoa (usando o link do Google Calendar); lê e “expande” os eventos dentro do período que você pediu (por exemplo, 7 dias); formata os dados (inicio, fim e nome do evento) para que o resto do código consiga comparar horários.
+    Para isso, atualize o certifi:
+    ```bash
+    pip install --upgrade certifi
+    ```
+- agendas.json ou constantes.json não encontrados:
 
-## def carregar_eventos(url: str, dias_a_frente: int) -> list:
- define a função que recebe:
- url: o link .ics do Google Calendar da pessoa; dias_a_frente: quantos dias pra frente você quer olhar (ex: 7 dias); -> list indica que ela devolve uma lista de eventos.
+    Verifique se estão no mesmo diretório do script e se o JSON é válido.
 
-# inicio_periodo e fim_periodo é o que pega a data e hora atuais no fuso de São Paulo; calcula o final do período (ex: hoje + 7 dias); esse intervalo define o pedaço de agenda que vamos buscar.
+## 💡Alguns lembretes:
+ - Se ao escrever os comandos no terminal aparecer algo pedindo email, apenas dar enter sem nada escrito
 
-# lista_eventos_brutos = events(url, start=inicio_periodo, end=fim_periodo): aqui entra a biblioteca icalevents, que faz todo o trabalho pesado:
-# baixa o arquivo .ics da url; interpreta o calendário (incluindo eventos recorrentes, tipo “toda segunda às 10h”); devolve uma lista de objetos evento dentro do intervalo pedido.
+ - O cache recarrega a cada 1 minuto
 
-# cria um dicionário simples:
-# eventos_formatados.append({
-   # "inicio": inicio,
-   # "fim": fim,
-   # "nome": evento.summary
-# })
-# cada evento vira um dicionário com três campos: inicio: quando começa; fim: quando termina nome: o título do evento (ex: “PET Reunião”).
+- Lembre que para o código funcionar, é necessário instalar as dependências:
 
-# return eventos_formatados: depois de converter tudo, devolve a lista de eventos prontos.
-# ex:[ {'inicio': 2025-10-20 14:00, 'fim': 2025-10-20 15:00, 'nome': 'PET reunião'},{'inicio': 2025-10-21 10:00, 'fim': 2025-10-21 11:00, 'nome': 'Aula'},]
+ ```bash 
+ pip3 install:  
+ ```
+ - streamlit 
+ - pytz 
+ - pandas 
+ - icalevents
+ - e todas que estão no requirement.txt
 
-# o bloco try / except: except Exception as e:
-    # st.error(f"Falha ao carregar a agenda da URL. Erro: {e}")
-    # return []
+- E rodar "streamlit run main.py" pro código funcionar, e abrir a interface gráfica.
 
-# para o código funcionar, é necessário instalar as dependencias:
-# no terminal: pip3 install streamlit pytz pandas icalevents
-# e rodar "streamlit run 1ajustes.py" pro código funcionar, e abrir a interface gráfica
-
-# Sobre o pop-up do Pylance Pode clicar No agora; é só sugestão de type checking. Não afeta a execução.
+- Sobre o pop-up do Pylance: Pode clicar No agora; é só sugestão de type checking. Não afeta a execução.
