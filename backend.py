@@ -6,6 +6,12 @@ from datetime import datetime, timedelta
 from icalevents.icalevents import events
 import streamlit as st
 
+# Obtem dados da autoridade certificadora
+import ssl, certifi
+os.environ["SSL_CERT_FILE"] = certifi.where()
+os.environ["REQUESTS_CA_BUNDLE"] = certifi.where()
+ssl._create_default_https_context = ssl.create_default_context(cafile=certifi.where())
+
 # Configurações globais
 FUSO_HORARIO_LOCAL = pytz.timezone('America/Sao_Paulo')
 

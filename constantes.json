@@ -1,5 +1,5 @@
 {
-  "nomes_reunioes": [
+  "nomes_exatos": [
     "RDH",
     "RMKT",
     "RGP",
@@ -9,6 +9,8 @@
   "nomes_iniciam_com": [
     "Reunião",
     "Reuniões",
-    "Crédito em conjunto"
+    "Crédito em conjunto",
+    "Acompanhamento",
+    "Treinamento"
   ]
 }
