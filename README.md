@@ -28,6 +28,10 @@ No terminal, dentro da pasta do projeto rode:
 ```bash
 streamlit run main.py
 ```
+Caso dê algum erro de leitura, não reconheça o o comando streamlit ou o PATH esteja errado, use o seguinte comando:
+```bash
+python -m streamlit run main.py
+```
 ## 🧯 Problemas comuns
 - Erro de certificado ao baixar ICS:
 
