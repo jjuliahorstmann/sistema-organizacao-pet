@@ -46,7 +46,7 @@ def render_frontend():
                 else:
                     st.info("Selecione pelo menos duas pessoas para comparar.")
 
-                st.subheader("Horários Livres para Todos")
+                st.subheader("Outros horários livres")
                 horarios_livres = calcular_horarios_livres(eventos_todos, intervalo, dias_para_analisar)
                 if horarios_livres:
                     livres_por_dia = defaultdict(list)
