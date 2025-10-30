@@ -10,7 +10,9 @@ def render_frontend():
     st.info("Dica: Se os resultados parecerem desatualizados, limpe o cache no menu (☰) → 'Clear cache'.")
 
     membros_selecionados = st.multiselect("Escolha as agendas para analisar:", options=list(AGENDAS.keys()))
-    col1, col2 = st.columns(2)
+    col1, col2 = st.columns(2) #nessa parte 1que criamos o filtro de horário útil, com um col3
+    #talvez adicionar um "st.radio()", e poder escolher entre "horário comercial: 7:30 - 18:00" e "horário flexível: 7:30 - 22:00"
+    #assim evita de ficar colocando muitos horários quebrados ou de digitarem errado
     intervalo = col1.number_input("⏱️ Intervalo (minutos):", min_value=15, value=50, step=5)
     dias_para_analisar = col2.number_input("📅 Dias a analisar:", min_value=1, max_value=30, value=7)
 
