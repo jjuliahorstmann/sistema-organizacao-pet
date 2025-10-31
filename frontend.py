@@ -10,7 +10,8 @@ def render_frontend():
     st.info("Dica: Se os resultados parecerem desatualizados, limpe o cache no menu (☰) → 'Clear cache'.")
 
     membros_selecionados = st.multiselect("Escolha as agendas para analisar:", options=list(AGENDAS.keys()))
-    col1, col2 = st.columns(2) #nessa parte 1que criamos o filtro de horário útil, com um col3
+    col1, col2 = st.columns(2) # é nessa parte que vamos criar o filtro de horário útil, com um "col3",
+    #pra isso vamos ter que descobrir como que adiciona esse tipo de daodo (hora: minuto)
     #talvez adicionar um "st.radio()", e poder escolher entre "horário comercial: 7:30 - 18:00" e "horário flexível: 7:30 - 22:00"
     #assim evita de ficar colocando muitos horários quebrados ou de digitarem errado
     intervalo = col1.number_input("⏱️ Intervalo (minutos):", min_value=15, value=50, step=5)
@@ -58,6 +59,6 @@ def render_frontend():
                     for dia, horarios in sorted(livres_por_dia.items()):
                         nome_dia_semana = dias_semana[dia.weekday()]
                         with st.expander(f"**{dia.strftime('%d/%m/%Y')} - {nome_dia_semana}**"):
-                            st.text(" | ".join(horarios))
+                            st.text(" | ".join(horarios)) #usar o DataFrame do pandas aqui, fica mais bonito do que os horários separados por barra
                 else:
                     st.warning("Nenhum horário livre em comum foi encontrado.")
