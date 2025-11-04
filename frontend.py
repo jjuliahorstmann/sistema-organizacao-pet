@@ -10,12 +10,16 @@ def render_frontend():
     st.info("Dica: Se os resultados parecerem desatualizados, limpe o cache no menu (☰) → 'Clear cache'.")
 
     membros_selecionados = st.multiselect("Escolha as agendas para analisar:", options=list(AGENDAS.keys()))
-    col1, col2 = st.columns(2) # é nessa parte que vamos criar o filtro de horário útil, com um "col3",
+    col1, col2, col3 = st.columns(3) # é nessa parte que vamos criar o filtro de horário útil, com um "col3",
     #pra isso vamos ter que descobrir como que adiciona esse tipo de daodo (hora: minuto)
     #talvez adicionar um "st.radio()", e poder escolher entre "horário comercial: 7:30 - 18:00" e "horário flexível: 7:30 - 22:00"
     #assim evita de ficar colocando muitos horários quebrados ou de digitarem errado
     intervalo = col1.number_input("⏱️ Intervalo (minutos):", min_value=15, value=50, step=5)
     dias_para_analisar = col2.number_input("📅 Dias a analisar:", min_value=1, max_value=30, value=7)
+    janela_de_analise = col3.radio(
+    "Tipo de horário:",
+    ["Horário comercial (7:30 - 18:00)", "Horário flexível (7:30 - 22:00)", "Personalizado"]
+)
 
     if st.button("Analisar Agendas", type="primary"):
         if not membros_selecionados:
