@@ -21,6 +21,14 @@ def render_frontend():
     ["Horário comercial (7:30 - 18:00)", "Horário flexível (7:30 - 22:00)", "Personalizado"]
 )
 
+    if janela_de_analise == "Personalizado":
+       col4, col5 = st.columns(2)
+    horario_inicio = col4.time_input("🕓 Início:", value=time(7, 30))
+    horario_fim = col5.time_input("🕕 Fim:", value=time(18, 0))
+    elif "comercial" in janela_de_analise.lower():
+        horario_inicio, horario_fim = time(7, 30), time(18, 0)
+    else:
+        horario_inicio, horario_fim = time(7, 30), time(22, 0)
     if st.button("Analisar Agendas", type="primary"):
         if not membros_selecionados:
             st.warning("Por favor, selecione pelo menos uma agenda.")
