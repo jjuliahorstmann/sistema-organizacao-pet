@@ -98,7 +98,7 @@ def carregar_eventos(url: str, dias_a_frente: int) -> list:
         return []
 
 
-def encontrar_horarios_pet_comuns(eventos_por_membro: dict, intervalo_min: int, dias: int, horario_inicio, horario_fim) -> list:
+def encontrar_horarios_pet_comuns(eventos_por_membro: dict, intervalo_min: int, dias: int) -> list:
     """
     Encontra blocos de tempo onde TODOS os membros têm algum evento 'PET',
     ignorando horários que coincidam com eventos reservados (constantes.json).
@@ -113,7 +113,7 @@ def encontrar_horarios_pet_comuns(eventos_por_membro: dict, intervalo_min: int, 
     tempo_atual = inicio_periodo
 
     while tempo_atual < fim_periodo:
-        if horario_inicio <= tempo_atual.time() <= horario_fim:
+        if 8 <= tempo_atual.hour < 22:
             todos_ocupados_com_pet = True
             reservado_no_horario = False
 
@@ -145,7 +145,7 @@ def encontrar_horarios_pet_comuns(eventos_por_membro: dict, intervalo_min: int, 
     return horarios_comuns
 
 
-def calcular_horarios_livres(eventos_todos: list, intervalo_min: int, dias: int, horario_inicio, horario_fim) -> list:
+def calcular_horarios_livres(eventos_todos: list, intervalo_min: int, dias: int) -> list:
     """
     Calcula os horários livres com base em uma lista de todos os eventos.
     Agora também considera como 'ocupado' qualquer evento que tenha nome
@@ -159,7 +159,8 @@ def calcular_horarios_livres(eventos_todos: list, intervalo_min: int, dias: int,
     tempo_atual = inicio_periodo
 
     while tempo_atual < fim_periodo:
-        if horario_inicio <= tempo_atual.time() <= horario_fim:
+        if 8 <= tempo_atual.hour < 22:
+            ocupado = False
             for e in eventos_todos:
                 if e["inicio"] <= tempo_atual < e["fim"]:
                     if eh_evento_reservado(e.get("nome", ""), CONSTANTES):
