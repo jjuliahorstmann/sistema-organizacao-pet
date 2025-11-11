@@ -3,6 +3,7 @@ import pytz
 import os
 import re
 from datetime import datetime, timedelta
+from datetime import time
 from icalevents.icalevents import events
 import streamlit as st
 
@@ -113,7 +114,7 @@ def encontrar_horarios_pet_comuns(eventos_por_membro: dict, intervalo_min: int, 
     tempo_atual = inicio_periodo
 
     while tempo_atual < fim_periodo:
-        if 8 <= tempo_atual.hour < 22:
+        if 7 <= tempo_atual.hour < 22:
             todos_ocupados_com_pet = True
             reservado_no_horario = False
 
@@ -148,19 +149,25 @@ def encontrar_horarios_pet_comuns(eventos_por_membro: dict, intervalo_min: int, 
 def calcular_horarios_livres(eventos_todos: list, intervalo_min: int, dias: int) -> list:
     """
     Calcula os horários livres com base em uma lista de todos os eventos.
-    Agora também considera como 'ocupado' qualquer evento que tenha nome
-    reservado conforme definido em constantes.json.
+    Considera 'ocupado' qualquer evento que tenha nome reservado
+    conforme definido em constantes.json. Analisa apenas o período
+    entre 7h30 e 22h em cada dia.
     """
     CONSTANTES = carregar_constantes()
-
-    inicio_periodo = datetime.now().replace(hour=0, minute=0, second=0, microsecond=0)
-    fim_periodo = inicio_periodo + timedelta(days=dias)
     horarios_livres = []
-    tempo_atual = inicio_periodo
 
-    while tempo_atual < fim_periodo:
-        if 8 <= tempo_atual.hour < 22:
+    # Início no dia atual, às 7h30
+    inicio_dia = datetime.now().replace(hour=7, minute=30, second=0, microsecond=0)
+
+    for dia in range(dias):
+        # Define início e fim de cada dia
+        inicio_periodo = inicio_dia + timedelta(days=dia)
+        fim_periodo = inicio_periodo.replace(hour=22, minute=0)
+
+        tempo_atual = inicio_periodo
+        while tempo_atual < fim_periodo:
             ocupado = False
+
             for e in eventos_todos:
                 if e["inicio"] <= tempo_atual < e["fim"]:
                     if eh_evento_reservado(e.get("nome", ""), CONSTANTES):
@@ -169,7 +176,10 @@ def calcular_horarios_livres(eventos_todos: list, intervalo_min: int, dias: int)
                     else:
                         ocupado = True
                         break
+
             if not ocupado:
                 horarios_livres.append(tempo_atual)
-        tempo_atual += timedelta(minutes=intervalo_min)
+
+            tempo_atual += timedelta(minutes=intervalo_min)
+
     return horarios_livres
