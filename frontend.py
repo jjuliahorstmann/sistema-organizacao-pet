@@ -11,22 +11,9 @@ def render_frontend():
     st.info("Dica: Se os resultados parecerem desatualizados, limpe o cache no menu (☰) → 'Clear cache'.")
 
     membros_selecionados = st.multiselect("Escolha as agendas para analisar:", options=list(AGENDAS.keys()))
-    col1, col2, col3 = st.columns(3) 
+    col1, col2, = st.columns(2) 
     intervalo = col1.number_input("⏱️ Intervalo (minutos):", min_value=15, value=50, step=5)
     dias_para_analisar = col2.number_input("📅 Dias a analisar:", min_value=1, max_value=30, value=7)
-    janela_de_horarios = col3.radio (
-        "Tipo de horário:",
-        ["Horário comercial (7:30 - 18:00)", "Horário flexível (7:30 - 22:00)", "Personalizado"]
-    )
-    if janela_de_horarios == "Personalizado":
-        col4, col5 = st.columns(2)
-        horario_inicio = col4.time_input("🕓 Início:", min_value =time(7, 30), value=time(7, 30), step = 10)
-        horario_fim = col5.time_input("🕕 Fim:", min_value =time(7, 30),max_value=time(22,00),value=time(18, 0),step = 10)
-    else:
-        if "comercial" in janela_de_horarios.lower():
-            horario_inicio, horario_fim = time(7, 30), time(18, 0)
-        else:
-            horario_inicio, horario_fim = time(7, 30), time(22, 0)
 
     if st.button("Analisar Agendas", type="primary"):
         if not membros_selecionados:
