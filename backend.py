@@ -73,7 +73,7 @@ def carregar_agendas(arquivo_json: str = "agendas.json") -> dict:
 AGENDAS = carregar_agendas()
 
 
-@st.cache_data(ttl=300) 
+@st.cache_data(ttl=60) 
 def carregar_eventos(url: str, dias_a_frente: int) -> list:
     """Baixa e processa eventos de uma URL, expandindo eventos recorrentes."""
     inicio_periodo = datetime.now(FUSO_HORARIO_LOCAL)
