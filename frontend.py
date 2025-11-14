@@ -5,8 +5,14 @@ from datetime import time
 from backend import AGENDAS, carregar_eventos, encontrar_horarios_pet_comuns, calcular_horarios_livres
 import streamlit as st
 
+
 def render_frontend():
-    st.set_page_config(layout="wide", page_title="Analisador de Agendas")
+    st.set_page_config(
+        page_title="Sincronizador PET",
+        page_icon="loguinho-azul.png",
+        layout="wide"
+    )
+    st.image("pet_logo.png", width=90)
     st.title("📅 Sincronizador de agendas PET 💙")
     st.info("Dica: Se os resultados parecerem desatualizados, limpe o cache no menu (☰) → 'Clear cache'.")
 
