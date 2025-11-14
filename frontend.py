@@ -3,11 +3,11 @@ import pandas as pd
 from collections import defaultdict
 from datetime import time
 from backend import AGENDAS, carregar_eventos, encontrar_horarios_pet_comuns, calcular_horarios_livres
-
+import streamlit as st
 
 def render_frontend():
     st.set_page_config(layout="wide", page_title="Analisador de Agendas")
-    st.title("📅 Analisador de Agendas em Comum")
+    st.title("📅 Sincronizador de agendas PET 💙")
     st.info("Dica: Se os resultados parecerem desatualizados, limpe o cache no menu (☰) → 'Clear cache'.")
 
     membros_selecionados = st.multiselect("Escolha as agendas para analisar:", options=list(AGENDAS.keys()))
