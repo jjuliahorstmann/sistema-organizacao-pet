@@ -3,6 +3,7 @@ import pytz
 import os
 import re
 from datetime import datetime, timedelta
+from typing import *
 from datetime import time
 from icalevents.icalevents import events
 import streamlit as st
@@ -75,111 +76,226 @@ AGENDAS = carregar_agendas()
 
 
 @st.cache_data(ttl=60) 
-def carregar_eventos(url: str, dias_a_frente: int) -> list:
-    """Baixa e processa eventos de uma URL, expandindo eventos recorrentes."""
+def carregar_eventos(url: str, dias_a_frente: int) -> List[dict]:
+    """
+    Baixa eventos da URL iCal, expande recorrências e retorna lista de dicts:
+    {'inicio': datetime_naive, 'fim': datetime_naive, 'nome': summary}
+    Todos os datetimes retornados são timezone-naive mas já convertidos para o fuso local.
+    """
     inicio_periodo = datetime.now(FUSO_HORARIO_LOCAL)
     fim_periodo = inicio_periodo + timedelta(days=dias_a_frente)
-    eventos_formatados = []
-
+    eventos_formatados: List[Dict[str, Any]] = []
     try:
         lista_eventos_brutos = events(url, start=inicio_periodo, end=fim_periodo)
-
         for evento in lista_eventos_brutos:
+            # Converte para fuso local e remove tzinfo para facilitar comparações
             inicio = evento.start.astimezone(FUSO_HORARIO_LOCAL).replace(tzinfo=None)
             fim = evento.end.astimezone(FUSO_HORARIO_LOCAL).replace(tzinfo=None)
-            eventos_formatados.append({
-                "inicio": inicio,
-                "fim": fim,
-                "nome": evento.summary
-            })
+            eventos_formatados.append({"inicio": inicio, "fim": fim, "nome": evento.summary})
         return eventos_formatados
-
     except Exception as e:
-        st.error(f"Falha ao carregar a agenda da URL. Erro: {e}")
+        st.error(f"Falha ao carregar agenda ({url}). Erro: {e}")
+        return []
+def _merge_intervals(intervalos: List[Tuple[datetime, datetime]]) -> List[Tuple[datetime, datetime]]:
+    """
+    Recebe uma lista de tuplas (start, end) e retorna a lista mesclada (sem sobreposições),
+    ordenada pelo início.
+    """
+    if not intervalos:
+        return []
+    sorted_intervals = sorted(intervalos, key=lambda x: x[0])
+    merged = [sorted_intervals[0]]
+    for current_start, current_end in sorted_intervals[1:]:
+        last_start, last_end = merged[-1]
+        if current_start <= last_end:
+            # sobreposição ou contíguo -> estende
+            merged[-1] = (last_start, max(last_end, current_end))
+        else:
+            merged.append((current_start, current_end))
+    return merged
+
+def _intersect_two_interval_sets(a: List[Tuple[datetime, datetime]], b: List[Tuple[datetime, datetime]]) -> List[Tuple[datetime, datetime]]:
+    """
+    Interseção entre dois conjuntos de intervalos (assume cada lista já mesclada e ordenada).
+    Retorna uma lista de intervalos resultantes da interseção.
+    """
+    i = j = 0
+    result = []
+    while i < len(a) and j < len(b):
+        start_a, end_a = a[i]
+        start_b, end_b = b[j]
+        start_max = max(start_a, start_b)
+        end_min = min(end_a, end_b)
+        if start_max < end_min:
+            result.append((start_max, end_min))
+        # Avança o ponteiro que termina primeiro
+        if end_a < end_b:
+            i += 1
+        else:
+            j += 1
+    return result
+
+
+def _intersect_interval_sets(sets: List[List[Tuple[datetime, datetime]]]) -> List[Tuple[datetime, datetime]]:
+    """Interseção de múltiplos conjuntos de intervalos."""
+    if not sets:
+        return []
+    intersected = sets[0]
+    for s in sets[1:]:
+        intersected = _intersect_two_interval_sets(intersected, s)
+        if not intersected:
+            break
+    return intersected
+
+
+def _clip_interval_to_day(interval: Tuple[datetime, datetime], inicio_dia: datetime, fim_dia: datetime) -> Tuple[datetime, datetime]:
+    """Recorta um intervalo para que fique dentro do [inicio_dia, fim_dia]."""
+    start, end = interval
+    new_start = max(start, inicio_dia)
+    new_end = min(end, fim_dia)
+    return (new_start, new_end) if new_start < new_end else None
+
+# -------------------------
+# Função principal: encontrar blocos livres num dia
+# -------------------------
+def _encontrar_blocos_livres_pela_lista_de_ocupados(ocupados: List[Tuple[datetime, datetime]],
+                                                    inicio_periodo: datetime,
+                                                    fim_periodo: datetime,
+                                                    duracao_min: int) -> List[datetime]:
+    """
+    Dado um conjunto de intervalos 'ocupados' (já mesclados), encontra os blocos livres
+    entre inicio_periodo e fim_periodo cuja duração >= duracao_min.
+    Retorna a lista dos horários de início desses blocos (datetime).
+    """
+    blocos_inicio: List[datetime] = []
+    # Se não há ocupações, todo o período é livre
+    if not ocupados:
+        total_min = (fim_periodo - inicio_periodo).total_seconds() / 60
+        if total_min >= duracao_min:
+            blocos_inicio.append(inicio_periodo)
+        return blocos_inicio
+
+    # Certifica que os ocupados estão mesclados e dentro do período
+    ocupados_mesclados = _merge_intervals(ocupados)
+
+    cursor = inicio_periodo
+    for start, end in ocupados_mesclados:
+        # pula ocupações que terminam antes do cursor
+        if end <= cursor:
+            continue
+        # se a ocupação começa depois do cursor há um gap
+        if start > cursor:
+            gap_min = (start - cursor).total_seconds() / 60
+            if gap_min >= duracao_min:
+                blocos_inicio.append(cursor)
+        # avança cursor para o fim da ocupação atual
+        cursor = max(cursor, end)
+        if cursor >= fim_periodo:
+            break
+
+    # gap final entre cursor e fim_periodo
+    if cursor < fim_periodo:
+        gap_min = (fim_periodo - cursor).total_seconds() / 60
+        if gap_min >= duracao_min:
+            blocos_inicio.append(cursor)
+
+    return blocos_inicio
+
+# -------------------------
+# Função: calcular_horarios_livres
+# -------------------------
+def calcular_horarios_livres(eventos_todos: List[dict], intervalo_min: int, dias: int) -> List[datetime]:
+    """
+    Retorna lista de datetimes (início do bloco) onde existe um bloco contínuo >= intervalo_min
+    completamente livre (considerando qualquer evento como 'ocupado', incluindo eventos reservados).
+    Analisa cada dia entre 7:30 e 22:00.
+    """
+    CONSTANTES = carregar_constantes()
+    horarios_livres: List[datetime] = []
+
+    for dia_offset in range(dias):
+        inicio_periodo = (datetime.now(FUSO_HORARIO_LOCAL).replace(hour=7, minute=30, second=0, microsecond=0)
+                          + timedelta(days=dia_offset)).replace(tzinfo=None)
+        fim_periodo = inicio_periodo.replace(hour=22, minute=0, second=0, microsecond=0)
+
+        # Constrói lista de intervalos ocupados neste dia, considerando RESERVED como ocupado também
+        ocupados: List[Tuple[datetime, datetime]] = []
+        for e in eventos_todos:
+            if e["fim"] > inicio_periodo and e["inicio"] < fim_periodo:
+                nome = e.get("nome", "")
+                # marca como ocupado independentemente se for reservado ou não (ambos bloqueiam)
+                start = max(e["inicio"], inicio_periodo)
+                end = min(e["fim"], fim_periodo)
+                ocupados.append((start, end))
+
+        ocupados_mesclados = _merge_intervals(ocupados)
+        blocos = _encontrar_blocos_livres_pela_lista_de_ocupados(ocupados_mesclados, inicio_periodo, fim_periodo, intervalo_min)
+        horarios_livres.extend(blocos)
+
+    return sorted(horarios_livres)
+
+# -------------------------
+# Função: encontrar_horarios_pet_comuns
+# -------------------------
+def encontrar_horarios_pet_comuns(eventos_por_membro: Dict[str, List[dict]], intervalo_min: int, dias: int) -> List[datetime]:
+    """
+    Encontra blocos em que TODOS os membros têm eventos 'PET' simultâneos por >= intervalo_min.
+    - Mantém a regra: nome do evento começa com 'PET' (case-insensitive).
+    - Ignora blocos que contenham eventos reservados (constantes.json).
+    Retorna lista de datetimes (início de cada bloco comum).
+    """
+    CONSTANTES = carregar_constantes()
+    horarios_finais: List[datetime] = []
+
+    if not eventos_por_membro:
         return []
 
+    membros = list(eventos_por_membro.keys())
 
-def encontrar_horarios_pet_comuns(eventos_por_membro: dict, intervalo_min: int, dias: int) -> list:
-    """
-    Encontra blocos de tempo onde TODOS os membros têm algum evento 'PET',
-    ignorando horários que coincidam com eventos reservados (constantes.json).
-    """
-    if len(eventos_por_membro) < 1:
-        return []
+    for dia_offset in range(dias):
+        dia_base = (datetime.now(FUSO_HORARIO_LOCAL).replace(hour=0, minute=0, second=0, microsecond=0)
+                    + timedelta(days=dia_offset)).replace(tzinfo=None)
+        inicio_periodo = dia_base.replace(hour=7, minute=30, second=0, microsecond=0)
+        fim_periodo = dia_base.replace(hour=22, minute=0, second=0, microsecond=0)
 
-    CONSTANTES = carregar_constantes()
-    inicio_periodo = datetime.now().replace(hour=0, minute=0, second=0, microsecond=0)
-    fim_periodo = inicio_periodo + timedelta(days=dias)
-    horarios_comuns = []
-    tempo_atual = inicio_periodo
+        # Para cada membro, construir lista de intervalos PET válidos (mesclados)
+        conjuntos_pet_por_membro: List[List[Tuple[datetime, datetime]]] = []
+        for sigla, eventos in eventos_por_membro.items():
+            pet_intervals: List[Tuple[datetime, datetime]] = []
+            for e in eventos:
+                nome = (e.get("nome") or "").strip()
+                if not nome:
+                    continue
+                # considerar 'PET' case-insensitive no começo
+                if nome.upper().startswith("PET"):
+                    # não considerar se for reservado explicitamente
+                    if eh_evento_reservado(nome, CONSTANTES):
+                        # pula eventos PET que são marcados como reservados
+                        continue
+                    # intersecta com janela do dia
+                    start = max(e["inicio"], inicio_periodo)
+                    end = min(e["fim"], fim_periodo)
+                    if start < end:
+                        pet_intervals.append((start, end))
+            pet_intervals_merged = _merge_intervals(pet_intervals)
+            conjuntos_pet_por_membro.append(pet_intervals_merged)
 
-    while tempo_atual < fim_periodo:
-        if 7 <= tempo_atual.hour < 22:
-            todos_ocupados_com_pet = True
-            reservado_no_horario = False
+        # Se algum membro não tem PET naquele dia, não há interseção possível
+        if any(len(s) == 0 for s in conjuntos_pet_por_membro):
+            continue
 
-            for _, eventos in eventos_por_membro.items():
-                # Verifica se algum evento reservado ocorre neste horário
-                for e in eventos:
-                    if e["inicio"] <= tempo_atual < e["fim"]:
-                        if eh_evento_reservado(e.get("nome", ""), CONSTANTES):
-                            reservado_no_horario = True
-                            break
-                if reservado_no_horario:
-                    break
+        # Interseção entre todos os conjuntos PET
+        intersecao = _intersect_interval_sets(conjuntos_pet_por_membro)
 
-                # Verifica se há um evento PET neste horário
-                if not any(
-                    e['nome'] and e['nome'].strip().upper().startswith("PET")
-                    and e['inicio'] <= tempo_atual < e['fim']
-                    for e in eventos
-                ):
-                    todos_ocupados_com_pet = False
-                    break
+        # Dentro de cada intervalo de interseção, verificar se tem duração >= intervalo_min
+        for start, end in intersecao:
+            duracao = (end - start).total_seconds() / 60
+            if duracao >= intervalo_min:
+                # adiciona o início desse bloco
+                horarios_finais.append(start)
 
-            # Adiciona horário comum apenas se todos estão em PET e não há evento reservado
-            if todos_ocupados_com_pet and not reservado_no_horario:
-                horarios_comuns.append(tempo_atual)
+    return sorted(horarios_finais)
 
-        tempo_atual += timedelta(minutes=intervalo_min)
-
-    return horarios_comuns
-
-
-def calcular_horarios_livres(eventos_todos: list, intervalo_min: int, dias: int) -> list:
-    """
-    Calcula os horários livres com base em uma lista de todos os eventos.
-    Considera 'ocupado' qualquer evento que tenha nome reservado
-    conforme definido em constantes.json. Analisa apenas o período
-    entre 7h30 e 22h em cada dia.
-    """
-    CONSTANTES = carregar_constantes()
-    horarios_livres = []
-
-    # Início no dia atual, às 7h30
-    inicio_dia = datetime.now().replace(hour=7, minute=30, second=0, microsecond=0)
-
-    for dia in range(dias):
-        # Define início e fim de cada dia
-        inicio_periodo = inicio_dia + timedelta(days=dia)
-        fim_periodo = inicio_periodo.replace(hour=22, minute=0)
-
-        tempo_atual = inicio_periodo
-        while tempo_atual < fim_periodo:
-            ocupado = False
-
-            for e in eventos_todos:
-                if e["inicio"] <= tempo_atual < e["fim"]:
-                    if eh_evento_reservado(e.get("nome", ""), CONSTANTES):
-                        ocupado = True
-                        break
-                    else:
-                        ocupado = True
-                        break
-
-            if not ocupado:
-                horarios_livres.append(tempo_atual)
-
-            tempo_atual += timedelta(minutes=intervalo_min)
-
-    return horarios_livres
+# -------------------------
+# Fim do arquivo
+# -------------------------
