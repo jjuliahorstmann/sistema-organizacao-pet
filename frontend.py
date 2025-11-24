@@ -13,7 +13,7 @@ def render_frontend():
 
     membros_selecionados = st.multiselect("Escolha as agendas para analisar:", options=list(AGENDAS.keys()))
     col1, col2, = st.columns(2) 
-    intervalo = col1.number_input("⏱️ Intervalo (minutos):", min_value=15, value=50, step=5)
+    intervalo = col1.number_input("⏱️ Duração da Reunião (minutos):", min_value=15, value=50, step=5)
     dias_para_analisar = col2.number_input("📅 Dias a analisar:", min_value=1, max_value=30, value=7)
 
     if st.button("Analisar Agendas", type="primary"):
@@ -27,7 +27,7 @@ def render_frontend():
 
                 if len(membros_selecionados) > 1:
                     st.subheader("Horários 'PET' em Comum")
-                    horarios_pet_comuns = encontrar_horarios_pet_comuns(eventos_por_membro, intervalo, dias_para_analisar)
+                    horarios_pet_comuns = encontrar_horarios_pet_comuns(eventos_por_membro, Duração da Reunião, dias_para_analisar)
                     if horarios_pet_comuns:
                         pet_por_dia = defaultdict(list)
                         for h in horarios_pet_comuns:
