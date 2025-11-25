@@ -206,34 +206,71 @@ def _encontrar_blocos_livres_pela_lista_de_ocupados(ocupados: List[Tuple[datetim
 # -------------------------
 def calcular_horarios_livres(eventos_todos: List[dict], intervalo_min: int, dias: int) -> List[datetime]:
     """
-    Retorna lista de datetimes (início do bloco) onde existe um bloco contínuo >= intervalo_min
-    completamente livre (considerando qualquer evento como 'ocupado', incluindo eventos reservados).
-    Analisa cada dia entre 7:30 e 22:00.
+    Versão corrigida e robusta:
+    - Não fragmenta eventos: usa os inícios/fins reais retornados por carregar_eventos.
+    - Mescla corretamente todos os intervalos ocupados do dia (sem duplicação).
+    - Encontra blocos livres contínuos com duração >= intervalo_min.
+    - Mostra depuração: eventos lidos e intervalos mesclados por dia.
     """
     CONSTANTES = carregar_constantes()
     horarios_livres: List[datetime] = []
 
     for dia_offset in range(dias):
-        inicio_periodo = (datetime.now(FUSO_HORARIO_LOCAL).replace(hour=7, minute=30, second=0, microsecond=0)
+        inicio_periodo = (datetime.now(FUSO_HORARIO_LOCAL)
+                          .replace(hour=7, minute=30, second=0, microsecond=0)
                           + timedelta(days=dia_offset)).replace(tzinfo=None)
         fim_periodo = inicio_periodo.replace(hour=22, minute=0, second=0, microsecond=0)
 
-        # Constrói lista de intervalos ocupados neste dia, considerando RESERVED como ocupado também
-        ocupados: List[Tuple[datetime, datetime]] = []
-        for e in eventos_todos:
-            if e["fim"] > inicio_periodo and e["inicio"] < fim_periodo:
-                nome = e.get("nome", "")
-                # marca como ocupado independentemente se for reservado ou não (ambos bloqueiam)
-                start = max(e["inicio"], inicio_periodo)
-                end = min(e["fim"], fim_periodo)
-                ocupados.append((start, end))
+        # 1) Filtra eventos que intersectam este dia
+        eventos_dia = [e for e in eventos_todos if e["fim"] > inicio_periodo and e["inicio"] < fim_periodo]
 
-        ocupados_mesclados = _merge_intervals(ocupados)
-        blocos = _encontrar_blocos_livres_pela_lista_de_ocupados(ocupados_mesclados, inicio_periodo, fim_periodo, intervalo_min)
+        # Depuração: mostrar eventos lidos para este dia (útil para checar casos como 'Reunião ED')
+        if eventos_dia:
+            try:
+                import pandas as _pd
+                st.write(f"--- Depuração de eventos para {inicio_periodo.date()} ---")
+                df_dbg = _pd.DataFrame([{
+                    "membro": e.get("membro", ""),
+                    "nome": e.get("nome", ""),
+                    "inicio": e.get("inicio"),
+                    "fim": e.get("fim"),
+                    "duração_min": (e.get("fim") - e.get("inicio")).total_seconds() / 60.0
+                } for e in eventos_dia])
+                st.dataframe(df_dbg.sort_values("inicio").reset_index(drop=True))
+            except Exception:
+                for e in eventos_dia:
+                    st.write(f"{e.get('nome','')} — {e.get('inicio')} -> {e.get('fim')}")
+
+        # 2) Construir lista de intervalos ocupados (start, end) sem fragmentar.
+        intervalos_crus: List[Tuple[datetime, datetime]] = []
+        for e in eventos_dia:
+            start = max(e["inicio"], inicio_periodo)
+            end = min(e["fim"], fim_periodo)
+            if start < end:
+                intervalos_crus.append((start, end))
+
+        # 3) Mesclar intervalos ocupados
+        todos_ocupados_mesclados = _merge_intervals(intervalos_crus)
+
+        # Depuração: mostrar intervalos mesclados
+        if todos_ocupados_mesclados:
+            try:
+                rows = [{"inicio": s, "fim": e, "duração_min": (e - s).total_seconds() / 60.0}
+                        for s, e in todos_ocupados_mesclados]
+                import pandas as _pd
+                st.write(f"Intervalos ocupados mesclados para {inicio_periodo.date()}:")
+                st.dataframe(_pd.DataFrame(rows).sort_values("inicio").reset_index(drop=True))
+            except Exception:
+                for s, e in todos_ocupados_mesclados:
+                    st.write(f"Ocupado: {s} -> {e} ({(e-s).total_seconds()/60:.0f} min)")
+
+        # 4) Encontrar blocos livres entre inicio_periodo e fim_periodo com duração >= intervalo_min
+        blocos = _encontrar_blocos_livres_pela_lista_de_ocupados(
+            todos_ocupados_mesclados, inicio_periodo, fim_periodo, intervalo_min
+        )
         horarios_livres.extend(blocos)
 
     return sorted(horarios_livres)
-
 # -------------------------
 # Função: encontrar_horarios_pet_comuns
 # -------------------------
