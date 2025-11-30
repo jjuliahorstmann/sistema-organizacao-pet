@@ -11,75 +11,9 @@ def format_interval(start_dt: datetime, dur_min: int) -> str:
     end_dt = start_dt + timedelta(minutes=dur_min)
     return f"{start_dt.strftime('%H:%M')} – {end_dt.strftime('%H:%M')}"
 
-def montar_tabela_compacta(horarios_pet: list, horarios_livres: list, duracao_min: int, dias: int):
-    """
-    Monta um DataFrame compacto (linhas = intervalos encontrados; colunas = dias da semana)
-    contendo apenas os horários úteis (PET e Livre).
-    """
-    # Organiza por dia
-    pet_por_dia = defaultdict(set)    # date -> set(interval_str)
-    livre_por_dia = defaultdict(set)  # date -> set(interval_str)
-
-    for h in horarios_pet:
-        data = h.date()
-        pet_por_dia[data].add(format_interval(h, duracao_min))
-
-    for h in horarios_livres:
-        data = h.date()
-        livre_por_dia[data].add(format_interval(h, duracao_min))
-
-    # Construir lista de dias (colunas) no período
-    hoje = datetime.now().date()
-    dias_lista = [hoje + timedelta(days=i) for i in range(dias)]
-    # Cabeçalhos legíveis: "Seg 24/11"
-    nomes_dias = []
-    for d in dias_lista:
-        nome_sem = ["Seg", "Ter", "Qua", "Qui", "Sex", "Sáb", "Dom"][d.weekday()]
-        nomes_dias.append(f"{nome_sem} {d.strftime('%d/%m')}")
-
-    # Reunir todos os intervalos únicos (como strings) encontrados na semana
-    todos_intervalos = set()
-    for d in dias_lista:
-        todos_intervalos.update(pet_por_dia.get(d, set()))
-        todos_intervalos.update(livre_por_dia.get(d, set()))
-
-    if not todos_intervalos:
-        return None  # nada para mostrar
-
-    # Ordena os intervalos pelos horários de início (HH:MM)
-    def key_interval(s):
-        # s é 'HH:MM – HH:MM'
-        start = s.split("–")[0].strip()
-        h, m = start.split(":")
-        return int(h) * 60 + int(m)
-    intervalos_ordenados = sorted(todos_intervalos, key=key_interval)
-
-    # Monta DataFrame: index = intervalos, columns = dias
-    df = pd.DataFrame(index=intervalos_ordenados, columns=nomes_dias)
-    df = df.fillna("")  # células vazias por padrão
-
-    # Preenche com 'PET' ou 'Livre' — PET tem prioridade caso haja sobreposição
-    for idx in intervalos_ordenados:
-        # descobrir datetime de início por dia se necessário (não preciso guardar o datetime real aqui)
-        for col_i, d in enumerate(dias_lista):
-            col_name = nomes_dias[col_i]
-            if idx in pet_por_dia.get(d, set()):
-                df.at[idx, col_name] = "PET"
-            elif idx in livre_por_dia.get(d, set()):
-                df.at[idx, col_name] = "Livre"
-            else:
-                df.at[idx, col_name] = ""
-
-    return df
-
-def color_cells(val):
-    """Retorna estilo CSS para a célula com base no valor."""
-    if val == "PET":
-        return "background-color: #cfe9ff; color: #0b3d91; font-weight: 600;"  # azul claro
-    if val == "Livre":
-        return "background-color: #d6f5d6; color: #1a6d1a; font-weight: 600;"  # verde claro
-    return ""
-
+def color_cards_html(text: str, background: str, color: str) -> str:
+    """Gera HTML estilizado para cards de horário"""
+    return f'<div style="background-color:{background}; color:{color}; font-weight:600; padding:6px; margin:3px 0; border-radius:5px;">{text}</div>'
 
 def render_frontend():
 
@@ -102,7 +36,7 @@ def render_frontend():
                                   for sigla in membros_selecionados}
             eventos_todos = [evento for lista in eventos_por_membro.values() for evento in lista]
 
-            # Horários PET (apenas se houver mais de 1 membro; caso 1, ainda faz sentido?)
+            # Horários PET (apenas se houver mais de 1 membro)
             if len(membros_selecionados) > 1:
                 st.subheader("Horários 'PET' em Comum")
                 horarios_pet_comuns = encontrar_horarios_pet_comuns(eventos_por_membro, intervalo, dias_para_analisar)
@@ -122,29 +56,54 @@ def render_frontend():
             else:
                 st.warning("Nenhum horário livre em comum foi encontrado.")
 
-            # Monta tabela compacta apenas com os horários encontrados
-            st.subheader("📆 Tabela Semanal Compacta (apenas horários úteis)")
-            tabela = montar_tabela_compacta(horarios_pet_comuns, horarios_livres, intervalo, dias_para_analisar)
-            if tabela is None:
+            # Visualização em CARDS por dia
+            st.subheader("📆 Horários úteis por dia (PET e Livres)")
+
+            if not horarios_pet_comuns and not horarios_livres:
                 st.info("Nenhum horário útil (PET ou Livre) foi encontrado no período selecionado.")
             else:
-                # Aplica estilo condicional
-                try:
-                    styled = tabela.style.applymap(color_cells)
-                    st.dataframe(styled, use_container_width=True)
-                except Exception:
-                    # fallback simples se styler não for compatível no ambiente
-                    st.dataframe(tabela.fillna(""), use_container_width=True)
+                hoje = datetime.now().date()
+                nomes_semana = ["Seg", "Ter", "Qua", "Qui", "Sex", "Sáb", "Dom"]
+
+                for i in range(dias_para_analisar):
+                    dia = hoje + timedelta(days=i)
+                    nome_dia = f"{nomes_semana[dia.weekday()]} {dia.strftime('%d/%m')}"
+
+                    # Filtra horários daquele dia para PET e Livre
+                    pet_do_dia = [format_interval(h, intervalo) for h in horarios_pet_comuns if h.date() == dia]
+                    livre_do_dia = [format_interval(h, intervalo) for h in horarios_livres if h.date() == dia]
+
+                    with st.container():
+                        st.markdown(f"### 📅 {nome_dia}")
+
+                        if pet_do_dia:
+                            st.markdown("**🔵 Horários PET:**")
+                            for intervalo_str in pet_do_dia:
+                                st.markdown(
+                                    color_cards_html(intervalo_str, "#cfe9ff", "#0b3d91"),
+                                    unsafe_allow_html=True
+                                )
+                        else:
+                            st.markdown("_Nenhum horário PET disponível_")
+
+                        if livre_do_dia:
+                            st.markdown("**🟢 Horários Livres:**")
+                            for intervalo_str in livre_do_dia:
+                                st.markdown(
+                                    color_cards_html(intervalo_str, "#d6f5d6", "#1a6d1a"),
+                                    unsafe_allow_html=True
+                                )
+                        else:
+                            st.markdown("_Nenhum horário livre disponível_")
 
             # Dados de depuração (opcional)
             st.subheader("🕵️‍♀️ DADOS DE DEPURAÇÃO: Eventos Carregados")
             if eventos_todos:
                 df_debug = pd.DataFrame(eventos_todos)
-                # tentar atribuir membro a cada linha (approximação)
+                # tentar atribuir membro a cada linha (aproximação)
                 membros_map = []
                 for m, evs in eventos_por_membro.items():
                     membros_map.extend([m] * len(evs))
-                # se tamanhos diferentes, preenche com vazio
                 if len(membros_map) < len(df_debug):
                     membros_map.extend([""] * (len(df_debug) - len(membros_map)))
                 df_debug['membro'] = membros_map[:len(df_debug)]
