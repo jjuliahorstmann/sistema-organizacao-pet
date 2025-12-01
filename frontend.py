@@ -18,7 +18,7 @@ def color_cards_html(text: str, background: str, color: str) -> str:
 def render_frontend():
 
     st.image("pet_logo.png", width=90)
-    st.title("📅 Sincronizador de agendas PET 💙")
+    st.title("📅 Sincronizador de agendas PET")
     st.info("Dica: Se os resultados parecerem desatualizados, limpe o cache no menu (☰) → 'Clear cache'.")
 
     membros_selecionados = st.multiselect("Escolha as agendas para analisar:", options=list(AGENDAS.keys()))
