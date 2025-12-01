@@ -21,7 +21,7 @@ FUSO_HORARIO_LOCAL = pytz.timezone('America/Sao_Paulo')
 #                CARREGAMENTO DE CONSTANTES
 # ============================================================
 
-def carregar_constantes(arquivo_json: str = "constantes.json") -> dict:
+def carregar_constantes(arquivo_json: str = "EDITÁVEIS/constantes.json") -> dict:
     """Carrega constantes reservadas usadas para marcar eventos ocupados."""
     try:
         caminho_absoluto = os.path.join(os.path.dirname(__file__), arquivo_json)
@@ -61,7 +61,7 @@ def eh_evento_reservado(nome_evento: str, constantes: dict) -> bool:
 #                   CARREGAMENTO DAS AGENDAS
 # ============================================================
 
-def carregar_agendas(arquivo_json: str = "agendas.json") -> dict:
+def carregar_agendas(arquivo_json: str = "EDITÁVEIS/agendas.json") -> dict:
     """Carrega URLs das agendas individuais."""
     try:
         caminho_absoluto = os.path.join(os.path.dirname(__file__), arquivo_json)

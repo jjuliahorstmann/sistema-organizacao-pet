@@ -4,7 +4,7 @@ from collections import defaultdict
 from datetime import datetime, timedelta
 from backend import AGENDAS, carregar_eventos, encontrar_horarios_pet_comuns, calcular_horarios_livres
 
-st.set_page_config(page_title="Sincronizador PET", page_icon="pet_logo.png", layout="wide")
+st.set_page_config(page_title="Sincronizador PET", page_icon="loguinho-azul.png", layout="wide")
 
 def format_interval(start_dt: datetime, dur_min: int) -> str:
     """Retorna string no formato 'HH:MM – HH:MM'"""
