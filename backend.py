@@ -120,19 +120,26 @@ def encontrar_horarios_pet_comuns(eventos_por_membro: dict, intervalo_min: int, 
     """
     Retorna horários onde TODOS os membros têm evento PET
     e não há conflito com eventos reservados.
+    Ignora horários que já passaram.
     """
     if len(eventos_por_membro) < 1:
         return []
 
     CONSTANTES = carregar_constantes()
 
-    inicio_periodo = datetime.now().replace(hour=0, minute=0, second=0, microsecond=0)
+    agora = datetime.now()  # <-- NOVO
+    inicio_periodo = agora.replace(hour=0, minute=0, second=0, microsecond=0)
     fim_periodo = inicio_periodo + timedelta(days=dias)
 
     horarios_comuns = []
     tempo_atual = inicio_periodo
 
     while tempo_atual < fim_periodo:
+
+        # NOVO: pula horários que já passaram
+        if tempo_atual < agora:
+            tempo_atual += timedelta(minutes=intervalo_min)
+            continue
 
         if 7 <= tempo_atual.hour < 22:
             todos_ocupados_com_pet = True
@@ -174,12 +181,13 @@ def encontrar_horarios_pet_comuns(eventos_por_membro: dict, intervalo_min: int, 
 def calcular_horarios_livres(eventos_todos: list, intervalo_min: int, dias: int) -> list:
     """
     Determina horários livres considerando apenas eventos reservados.
-    Analisa apenas entre 7h30 e 22h.
+    Analisa apenas entre 7h30 e 22h. Ignora horários que já passaram.
     """
     CONSTANTES = carregar_constantes()
     horarios_livres = []
 
-    inicio_dia = datetime.now().replace(hour=7, minute=30, second=0, microsecond=0)
+    agora = datetime.now()  # <-- NOVO
+    inicio_dia = agora.replace(hour=7, minute=30, second=0, microsecond=0)
 
     for dia in range(dias):
         inicio_periodo = inicio_dia + timedelta(days=dia)
@@ -188,17 +196,17 @@ def calcular_horarios_livres(eventos_todos: list, intervalo_min: int, dias: int)
         tempo_atual = inicio_periodo
 
         while tempo_atual < fim_periodo:
+
+            # NOVO: pula horários que já passaram
+            if tempo_atual < agora:
+                tempo_atual += timedelta(minutes=intervalo_min)
+                continue
+
             ocupado = False
 
             for e in eventos_todos:
                 if e["inicio"] <= tempo_atual < e["fim"]:
-
-                    if eh_evento_reservado(e.get("nome", ""), CONSTANTES):
-                        ocupado = True
-                    else:
-                        # Se o evento NÃO é reservado, também conta como ocupado
-                        ocupado = True
-
+                    ocupado = True
                     break
 
             if not ocupado:
